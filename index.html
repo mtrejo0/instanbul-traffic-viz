@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Istanbul Traffic Index Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-statistics/7.8.0/simple-statistics.min.js"></script>
+    <style>
+        .line {
+            fill: none;
+            stroke-width: 2px;
+        }
+        .regression-line {
+            fill: none;
+            stroke: red;
+            stroke-width: 2px;
+            stroke-dasharray: 5,5;
+        }
+        .axis-label {
+            font-size: 12px;
+        }
+        .chart-container {
+            margin-bottom: 50px;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        .chart-note {
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        .conclusion-container {
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            padding: 20px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Istanbul Traffic Index Over Time</h1>
+    <div id="chart" class="chart-container"></div>
+    <div id="monday-chart" class="chart-container"></div>
+    <p class="chart-note">Note: Monday shows the worst increase in traffic times compared to other days.</p>
+    <div id="tuesday-chart" class="chart-container"></div>
+    <div id="wednesday-chart" class="chart-container"></div>
+    <div id="thursday-chart" class="chart-container"></div>
+    <div id="friday-chart" class="chart-container"></div>
+    <div id="saturday-chart" class="chart-container"></div>
+    <div id="sunday-chart" class="chart-container"></div>
+    <div id="conclusion" class="conclusion-container">
+        <h2>Conclusion</h2>
+        <p>Based on the data presented in the charts above, it is evident that traffic conditions in Istanbul are worsening over time. All rates of change across different days of the week show positive trends, indicating a consistent increase in traffic congestion. Notably, Monday shows the worst increase in traffic times compared to other days. This upward trend in the Traffic Index suggests that Istanbul is facing growing challenges in managing its traffic flow, potentially due to factors such as population growth, increased vehicle ownership, or insufficient infrastructure improvements. The significant deterioration of Monday traffic conditions may be attributed to the start of the workweek and could require targeted interventions to alleviate congestion.</p>
+    </div>
+
+    <script>
+        // Set the dimensions and margins of the graph
+        const margin = {top: 20, right: 30, bottom: 50, left: 60};
+        const width = 960 - margin.left - margin.right;
+        const height = 300 - margin.top - margin.bottom;
+
+        function createChart(containerId, data, title) {
+            // Create the SVG element
+            const svg = d3.select(containerId)
+                .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            // Set up scales
+            const x = d3.scaleTime()
+                .domain(d3.extent(data, d => d.trafficindexdate))
+                .range([0, width]);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.average_traffic_index)])
+                .range([height, 0]);
+
+            // Create the line
+            const line = d3.line()
+                .x(d => x(d.trafficindexdate))
+                .y(d => y(d.average_traffic_index));
+
+            // Add the X axis
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(x));
+
+            // Add the Y axis
+            svg.append("g")
+                .call(d3.axisLeft(y));
+
+            // Add the line path
+            svg.append("path")
+                .datum(data)
+                .attr("class", "line")
+                .attr("d", line)
+                .style("stroke", d3.schemeCategory10[Math.floor(Math.random() * 10)]);
+
+            // Calculate linear regression
+            const regression = ss.linearRegression(data.map(d => [d.trafficindexdate.getTime(), d.average_traffic_index]));
+            const regressionLine = ss.linearRegressionLine(regression);
+
+            // Add regression line
+            svg.append("path")
+                .datum([
+                    {date: d3.min(data, d => d.trafficindexdate), value: regressionLine(d3.min(data, d => d.trafficindexdate.getTime()))},
+                    {date: d3.max(data, d => d.trafficindexdate), value: regressionLine(d3.max(data, d => d.trafficindexdate.getTime()))}
+                ])
+                .attr("class", "regression-line")
+                .attr("d", d3.line()
+                    .x(d => x(d.date))
+                    .y(d => y(d.value))
+                );
+
+            // Add X axis label
+            svg.append("text")
+                .attr("class", "axis-label")
+                .attr("text-anchor", "middle")
+                .attr("x", width / 2)
+                .attr("y", height + margin.bottom - 10)
+                .text("Date");
+
+            // Add Y axis label
+            svg.append("text")
+                .attr("class", "axis-label")
+                .attr("text-anchor", "middle")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -margin.left + 20)
+                .attr("x", -height / 2)
+                .text("Average Traffic Index");
+
+            // Add title
+            svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", 5 - (margin.top / 2))
+                .attr("text-anchor", "middle")
+                .style("font-size", "16px")
+                .style("font-weight", "bold")
+                .text(title);
+
+                console.log(regression)
+
+            // Add regression equation under the title
+            svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", 0 - (margin.top / 2) + 20)
+                .attr("text-anchor", "middle")
+                .style("font-size", "12px")
+                .text(`Regression: y = (${regression.m})x + ${regression.b.toFixed(2)}`);
+        }
+
+        // Load and process the data
+        d3.csv("https://raw.githubusercontent.com/mtrejo0/instanbul-traffic-viz/main/traffic_index.csv").then(function(data) {
+            // Parse the date and convert string values to numbers
+            const parseDate = d3.timeParse("%Y-%m-%d %H:%M:%S %Z %Z");
+            data.forEach(d => {
+                const parsedDate = parseDate(d.trafficindexdate);
+                if (parsedDate) {
+                    d.trafficindexdate = parsedDate;
+                    d.average_traffic_index = +d.average_traffic_index;
+                    d.day_of_week = parsedDate.getDay(); // Get day of week from parsed date
+                    d.hour_of_day = +d.hour_of_day;
+                }
+            });
+            // Filter out any rows where parsing failed
+            data = data.filter(d => d.trafficindexdate instanceof Date);
+
+            // Sort data by date
+            data.sort((a, b) => a.trafficindexdate - b.trafficindexdate);
+
+            // Create the main chart
+            createChart("#chart", data, "All Days");
+
+            // Create charts for each day of the week
+            const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            daysOfWeek.forEach((day, index) => {
+                const filteredData = data.filter(d => d.day_of_week === index);
+                createChart(`#${day.toLowerCase()}-chart`, filteredData, day);
+            });
+        });
+    </script>
+</body>
+</html>
